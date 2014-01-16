@@ -1,7 +1,7 @@
 Count:Chocula
 =============
 A collection of scripts and utilities for performing a single-bin "counting"
-analysis to estimate the sensitivity of pretty-low background searched for
+analysis to estimate the sensitivity of pretty-low background searches for
 pretty-rare physics processes, like neutrino-less double beta decay.
 
 Documentation
