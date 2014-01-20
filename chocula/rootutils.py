@@ -82,7 +82,7 @@ def setup_environment():
     ROOT.gStyle.SetOptStat(0)
 
 
-def set_plot_options(h, color=1, ymin=0.01, ymax=1000):
+def set_plot_options(h, color=1):
     '''Set some common histogram options.
 
     :param h: The histogram
@@ -95,12 +95,6 @@ def set_plot_options(h, color=1, ymin=0.01, ymax=1000):
     h.SetLineWidth(2)
     h.SetLineColor(color)
     h.SetMarkerColor(color)
-    w = h.GetXaxis().GetBinWidth(0)
-    h.SetYTitle('Counts/bin')
-    h.GetYaxis().SetRangeUser(ymin, ymax)
-    h.SetMinimum(ymin)
-    h.SetMaximum(ymax)
-    h.SetXTitle('Energy (MeV)')
     h.GetXaxis().SetLabelFont(132)
     h.GetXaxis().SetTitleFont(132)
     h.GetXaxis().SetTitleSize(0.07)

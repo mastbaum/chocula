@@ -3,9 +3,10 @@
 import sys
 import argparse
 import multiprocessing
-from chocula import loader
 from chocula import rootutils
+from chocula import loader
 from chocula import counting
+from chocula import plot
 
 # Scaling from sigma to HWHM
 HHS = 2.35482 / 2
@@ -19,29 +20,32 @@ ROIS = {
     'm05p15': (lambda (m, s): (m - 0.5 * s, m + 1.5 * s)),
 }
 
-def _make_cuts(args, signal):
+def _make_cuts(radius, fitter, energy, signal):
     '''Build the ROI cut based on command-line arguments.
 
-    :param args: Arguments, as parsed by the ArgumentParser
+    :param radius: Maximum (i.e. fiducial) radius
+    :param fitter: Name of fitter whose results to require
+    :param energy: Energy ROI in min:max format or a type string, or None
     :param signal: The Signal representing the actual signal
     :returns: A TCut expressing the cuts
     '''
     roi_cut_kwargs = {
         'evIndex': 0,
-        'radius': (0, args.radius),
-        args.fitter: True,
+        'radius': (0, radius),
+        fitter: True,
     }
     cut = rootutils.build_tcut(**roi_cut_kwargs)
 
     # Fit for the energy if it's not explicitly specified
-    if ':' in args.energy:
-        energy = map(float, args.energy.split(':'))
-    else:
-        energy = ROIS[args.energy](rootutils.get_energy_roi(signal, cut))
+    if energy is not None:
+        if ':' in energy:
+            energy = map(float, energy.split(':'))
+        else:
+            energy = ROIS[args.energy](rootutils.get_energy_roi(signal, cut))
 
-    roi_cut_kwargs['energy'] = energy
+        roi_cut_kwargs['energy'] = energy
+
     cut = rootutils.build_tcut(**roi_cut_kwargs)
-
     return cut
 
 
@@ -60,7 +64,15 @@ if __name__ == '__main__':
                         default=multiprocessing.cpu_count(),
                         help='Number of parallel proceses')
     parser.add_argument('--output', '-o',
-                        help='Output CSV filename for counts')
+                        help='Base output filename for count table and plot')
+    parser.add_argument('--no-count', action='store_true',
+                        help='Do not count events in the ROI')
+    parser.add_argument('--plot', action='store_true',
+                        help='Produce a plot of energy distributions')
+    parser.add_argument('--live-time', '-t', default=1, type=float,
+                        help='Live time, used to scale plot')
+    parser.add_argument('--bounds', '-b', default='250:0:5:0.1:1000',
+                        help='Plot boundaries as bins:x1:x2:y1:y2')
     parser.add_argument('table', help='Filename of background table')
     args = parser.parse_args()
 
@@ -68,22 +80,36 @@ if __name__ == '__main__':
     signals = loader.load(args.table, args.processes)
 
     # Set up the cuts
-    signal_signal = filter(lambda x: x.chain == 'S', signals)[0]
-    cut = _make_cuts(args, signal_signal)
     print '== Cut ======'
+    signal_signal = filter(lambda x: x.chain == 'S', signals)[0]
+    cut = _make_cuts(args.radius, args.fitter, args.energy, signal_signal)
     print cut
 
     # Count 'em
-    count = counting.count(signals, cut)
+    if not args.no_count:
+        print '== Counts ==='
+        count = counting.count(signals, cut, processes=args.processes)
 
-    # Output the results
-    print '== Results =='
-    max_name_length = max(map(lambda x: len(x.name), signals))
-    for k, v in count:
-        print ('{:%is} {:4.3f}' % max_name_length).format(k, v)
+        # Output the results
+        max_name_length = max(map(lambda x: len(x.name), signals))
+        for k, v in count:
+            print ('{:%is} {:4.3f}' % max_name_length).format(k, v)
 
-    if args.output is not None:
-        with open(args.output, 'w') as f:
-            for signal in count:
-                f.write('%s,%1.3f\n' % signal)
+        if args.output is not None:
+            with open(args.output + '.csv', 'w') as f:
+                for signal in count:
+                    f.write('%s,%1.3f\n' % signal)
+
+    # Spectrum plot
+    if args.plot:
+        print '== Plot ====='
+        bins, x1, x2, y1, y2 = map(float, args.bounds.split(':'))
+        bins = int(bins)
+        cut = _make_cuts(args.radius, args.fitter, None, signal_signal)
+        canvas, legend, plots = plot.plot(signals, bins, x1, x2, y1, y2,
+                                          args.live_time, cut,
+                                          processes=args.processes)
+        canvas.SaveAs(args.output + '.pdf')
+        canvas.SaveAs(args.output + '.C')
+        print 'Created %s.pdf and %s.C' % (args.output, args.output)
 

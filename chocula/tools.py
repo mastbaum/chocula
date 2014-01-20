@@ -28,7 +28,7 @@ def counts_to_lifetime(n, t, f, counts):
     '''Convert a limit in counts to a lifetime limit.
 
     :param n: Number of atoms of isotope
-    :param t: Life time in years
+    :param t: Lifetime in years
     :param f: Analysis signal efficiency
     :param counts: Limit in counts
     :returns: Limit in years
@@ -40,7 +40,7 @@ def lifetime_to_counts(n, t, f, lifetime):
     '''Convert a limit in lifetime to a limit in counts.
 
     :param n: Number of atoms of isotope
-    :param t: Life time in years
+    :param t: Lifetime in years
     :param f: Analysis signal efficiency
     :param lifetime: Lifetime limit in years
     :returns: Limit in counts

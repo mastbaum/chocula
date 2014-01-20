@@ -32,6 +32,7 @@ def import_csv(csv_file):
         signal = Signal(name, chain, title, filename, rate, scale=scale)
         signals.append(signal)
 
+    csv_file.close()
     return signals
 
 
