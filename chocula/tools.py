@@ -21,14 +21,14 @@ def mass_to_lifetime(isotope, mass):
     :param mass: Mass limit in eV
     :returns: Lifetime limit in years
     '''
-    return 1.0 / (isotope.G * isotope.M**2 * (m_e / mass)**2)
+    return 1.0 / (isotope.G * isotope.M**2 * (mass / m_e)**2)
 
 
 def counts_to_lifetime(n, t, f, counts):
     '''Convert a limit in counts to a lifetime limit.
 
     :param n: Number of atoms of isotope
-    :param t: Lifetime in years
+    :param t: Live time in years
     :param f: Analysis signal efficiency
     :param counts: Limit in counts
     :returns: Limit in years

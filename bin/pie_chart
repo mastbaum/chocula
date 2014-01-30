@@ -1,0 +1,96 @@
+#!/usr/bin/env python
+'''Make a pie chart of the background contributions from a counting experiment.
+
+Notes:
+* Loads the CSV output of the chocula script.
+* Opens the TPie in an interactive ROOT window
+'''
+
+import sys
+import csv
+import operator
+import array
+import ROOT
+
+# Color palette for pie chart
+COLORS = [ROOT.kRed-4, ROOT.kBlue-4, ROOT.kGreen+2, ROOT.kOrange+1,
+          ROOT.kMagenta+1, ROOT.kCyan+1, ROOT.kOrange-2, ROOT.kRed+2,
+          ROOT.kBlue-9, ROOT.kSpring+4, ROOT.kGray+1, ROOT.kPink+1,
+          ROOT.kViolet+6]
+
+
+def load_csv(filename):
+    '''Load a CSV file with counts.
+
+    :param filename: CSV file name
+    :returns: A {title: counts} dict
+    '''
+    counts = {}
+    with open(filename, 'r') as f:
+        reader = csv.reader(filter(lambda row: row[0] != '#', f))
+        for row in reader:
+            row = map(lambda x: x.strip(), row)
+            name, title, count = row
+            if name == 'zeronu' or count == 0:
+                continue
+            counts[title] = float(count)
+    return counts
+
+
+def make_pie(counts, slices=5):
+    '''Make a ROOT pie chart.
+
+    :param counts: A dict of {label: counts in ROI}
+    :returns: A delicious TPie
+    '''
+    # How many slices of pie?
+    slices = min(slices, len(counts))
+
+    # Sort by counts to see which are shown and which are "other"
+    counts_by_value = sorted(counts.iteritems(),
+                             key=operator.itemgetter(1),
+                             reverse=True)
+    shown = counts_by_value[:slices-1]
+    other_counts = sum(x[1] for x in counts_by_value[slices-1:])
+
+    # Add the unnamed "other" slice
+    shown += [('', other_counts)]
+
+    titles, values = zip(*shown)
+    colors = COLORS[:len(values)]
+    colors[-1] = 1  # Other is black
+
+    # Format arrays for ROOT
+    values = array.array('f', values)
+    colors = array.array('i', colors)
+    titles = [array.array('c', x + '\0') for x in titles]
+    addr = array.array('l', [x.buffer_info()[0] for x in titles])
+
+    # Bake
+    return ROOT.TPie('pie', '', len(values), values, colors, addr)
+
+
+if __name__ == '__main__':
+    if len(sys.argv) < 2:
+        print 'Usage:', sys.argv[0], 'filename.csv'
+
+    # Number of slices
+    if len(sys.argv) == 3:
+        slices = int(sys.argv[-1])
+    else:
+        slices = 6
+
+    # Load the table of titles and counts from file
+    counts = load_csv(sys.argv[1])
+
+    # Make the chart
+    chart = make_pie(counts, slices)
+
+    # Draw
+    c = ROOT.TCanvas('c', 'c', 500, 500)
+    chart.SetRadius(0.25)
+    chart.SetTextFont(132)
+    chart.Draw('nol')
+    c.Update()
+    raw_input()
+

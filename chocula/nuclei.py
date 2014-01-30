@@ -23,12 +23,16 @@ class Isotope(object):
     :param A: Atomic mass
     :param g_A: 0vbb phase space factor
     :param M: 0vbb matrix element
+    :param t: 2vbb lifetime (y)
+    :param Q: Q-value of 2vbb
     '''
-    def __init__(self, Z, A, g_A, M):
-        self.Z = Z
-        self.A = A
-        self.g_A = g_A
-        self.M = M
+    def __init__(self, Z, A, G, M, t, Q):
+        self.Z = int(Z)
+        self.A = int(A)
+        self.G = float(G)
+        self.M = float(M)
+        self.t = float(t)
+        self.Q = float(Q)
 
 
 def load_table():
@@ -38,8 +42,8 @@ def load_table():
     isotopes = {}
     for row in reader:
         row = map(lambda x: x.strip(), row)
-        name, Z, A, g_A, M = row
-        isotopes[name] = Isotope(Z, A, g_A, M)
+        name, Z, A, G, M, t, Q = row
+        isotopes[name] = Isotope(Z, A, G, M, t, Q)
     return isotopes
 
 

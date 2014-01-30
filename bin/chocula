@@ -80,10 +80,12 @@ if __name__ == '__main__':
     signals = loader.load(args.table, args.processes)
 
     # Set up the cuts
-    print '== Cut ======'
-    signal_signal = filter(lambda x: x.chain == 'S', signals)[0]
-    cut = _make_cuts(args.radius, args.fitter, args.energy, signal_signal)
-    print cut
+    signal_signal = None
+    if not args.no_count:
+        print '== Cut ======'
+        signal_signal = filter(lambda x: x.chain == 'S', signals)[0]
+        cut = _make_cuts(args.radius, args.fitter, args.energy, signal_signal)
+        print cut
 
     # Count 'em
     if not args.no_count:
