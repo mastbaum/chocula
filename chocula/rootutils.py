@@ -4,7 +4,7 @@ import sys
 from rootimport import ROOT
 
 # A less-horrible sequential palette for ROOT
-COLORS = [  1,  2, 3,  4, 797,  7,  8,  9, 11,  6,
+COLORS = [  1,  2, 3,  4, 797,  7,  ROOT.kGreen+3,  ROOT.kViolet+1, 11,  6,
            12, 29, 5, 30,  34, 38, 40, 42, 45, 46,
            49,  1, 2,  3,   4,  5,  6, 7 ]
 
@@ -74,12 +74,15 @@ def get_energy_roi(signal, cut):
     return mean, sigma 
 
 
-def setup_environment():
+def setup_environment(batch=True):
     '''Set up global defaults.'''
-    ROOT.gROOT.SetBatch(True)
+    ROOT.gROOT.SetBatch(batch)
     ROOT.gErrorIgnoreLevel = ROOT.kWarning
     ROOT.gStyle.SetOptTitle(0)
     ROOT.gStyle.SetOptStat(0)
+    ROOT.gStyle.SetLabelFont(132)
+    ROOT.gStyle.SetTitleFont(132)
+    ROOT.gStyle.SetTextFont(132)
 
 
 def set_plot_options(h, color=1):

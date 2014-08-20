@@ -4,7 +4,7 @@ import itertools
 import multiprocessing
 
 def _count_signal((signal, cut)):
-    return signal.count(cut)
+    return signal.count(cut=cut)
 
 def count(signals, cut, processes=None):
     '''Count the number of events that pass a cut.
@@ -30,7 +30,7 @@ def count(signals, cut, processes=None):
         counts = [item for sublist in individual_counts for item in sublist]
     else:
         for signal in signals:
-            counts.extend(signal.count(cut))
+            counts.extend(signal.count(cut=cut))
 
     return counts
 

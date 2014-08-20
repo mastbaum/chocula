@@ -3,6 +3,7 @@
 import math
 import numpy as np
 import scipy.stats
+from chocula import distributions
 
 def poisson_zero_background(n, t, f, cl=0.9):
     '''Poisson regime counting experiment for the zero background case.
@@ -31,34 +32,35 @@ class FeldmanCousins():
     Note: Does not match Feldman-Cousins table values for cases where zero
     events are abserved.
 
-    :param n_expected: The number of background events expected
+    :param b: The number of background events expected
     :param cl: Confidence level, e.g. 0.9 for a 90% CL
     :param mu_min: Minimum value of true parameter used for constructing bands
     :param mu_max: Maximum value of true parameter used for constructing bands
     :param mu_step: Size of sampling in true paramter mu
     '''
-    def __init__(self, n_expected, cl=0.9,
-                 mu_min=0.0, mu_max=50.0, mu_step=0.005):
-        def poisexp(x, p):
-            if p == 0:
-                return scipy.stats.expon.pdf(x, p)
-            else:
-                return scipy.stats.poisson.pmf(x, p)
-
-        n = np.arange(int(mu_max))
+    def __init__(self, b, cl=0.9, sigma=0,
+                 mu_min=0.0, mu_max=50.0, mu_step=0.05):
+        n = np.arange(int(mu_max), dtype=np.float64)
         self.mu = np.arange(mu_min, mu_max, mu_step)
 
-        p = np.empty(shape=(len(self.mu), len(n)), dtype=np.float32)
+        if sigma > 0:
+            bx = np.arange(b - 5 * sigma,
+                           b + 5 * sigma,
+                           mu_step)[np.newaxis].T
+            b = distributions.gaussian(bx, b, sigma)
+            b /= np.sum(b)
+        else:
+            bx = np.array([b])
+            b = np.array([1])
 
-        for i, m in enumerate(self.mu):
-            p[i] = poisexp(n, m + n_expected)
+        mean = (bx + self.mu[:,np.newaxis])
+        meanflat = mean.flatten()[:,np.newaxis]
+        shape = list(mean.shape) + [len(n)]
+        p = np.sum(scipy.stats.poisson.pmf(n, meanflat).reshape(shape), axis=1)
 
-        mu_best = (n - n_expected).clip(0) + n_expected
-
-        d = np.empty_like(n, dtype=np.float32)
-        for i, m in enumerate(mu_best):
-            d[i] = poisexp(i, m)
-
+        bxclip = (n - bx[np.newaxis]).clip(0) + bx[np.newaxis]
+        d = np.sum(scipy.stats.poisson.pmf(n, bxclip), axis=0)
+        
         r = p / d
 
         ranks = np.empty_like(n)
@@ -88,7 +90,10 @@ class FeldmanCousins():
         interval = np.where((self.bands[:,0] >= 0) &
                             (self.bands[:,0] <= n_observed) &
                             (self.bands[:,1] >= n_observed))[0]
-        return self.mu[interval[0]], self.mu[interval[-1]]
+        try:
+            return self.mu[interval[0]], self.mu[interval[-1]]
+        except IndexError:
+            return 0, 0
 
 
 def bayesian_limit(observed, background, one_sided=False, sigma=0, cl=0.9,
@@ -126,22 +131,19 @@ def bayesian_limit(observed, background, one_sided=False, sigma=0, cl=0.9,
     if sigma > 0:
         ll -= 0.5 * np.square(b - background) / np.square(sigma)
 
-    likelihood = np.exp(ll)
-
     # Marginalize backgrounds
+    likelihood = np.exp(ll)
     if sigma > 0:
         likelihood = np.sum(likelihood, axis=0)
 
     # Extract points inside the confidence interval
-    integral = np.cumsum(likelihood)
-    integral /= integral[-1]
-
     if one_sided:
-        return s[np.argmin(np.abs(integral - 0.9)) + 1]
+        integral = np.cumsum(likelihood)
+        integral /= integral[-1]
+        return s[np.argmin(np.abs(integral - cl)) + 1]
 
-    m = likelihood.argsort()[::-1]
-    likelihood, s = likelihood[m], s[m]
-    s = s[:np.searchsorted(integral, cl)+1]
-
-    return np.min(s), np.max(s)
+    lsort = likelihood.argsort()[::-1]
+    ls = np.cumsum(likelihood[lsort])
+    interval = s[lsort[:np.argmin(np.abs(ls / ls[-1] - cl)) + 1]]
+    return np.min(interval), np.max(interval)
 

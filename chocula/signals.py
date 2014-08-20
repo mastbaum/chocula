@@ -9,19 +9,18 @@ class Signal(object):
     :param chain: Name of a chain that this signal belongs to
     :param title: A ROOT LaTeX title
     :param filename: Filename to load for data
-    :param rate: Number of events per year
+    :param rates: List of events per year in [y1, y2, y3, y4, y5]
     :param scale: Analysis scaling factor
     :param autoload: Load the ROOT dataset automatically
     '''
-    def __init__(self, name, chain, title, filename, rate, scale=1.0,
+    def __init__(self, name, chain, title, filename, rates, scale=1.0,
                  autoload=False):
         self.name = name
         self.chain = chain
         self.title = title
         self.filename = filename
-        self.rate = rate
+        self.rates = rates
         self.scale = scale
-        self.normalization = self.rate * self.scale
 
         # Set by load_dataset
         self.tree = None
@@ -30,7 +29,7 @@ class Signal(object):
         if autoload:
             load_dataset()
 
-    def load_dataset(self, branch_name='output'):
+    def load_dataset(self, branch_name='data'):
         '''Load a ROOT data set from files.
 
         :param branch_name: Name of the TNtuple branch to read
@@ -38,21 +37,25 @@ class Signal(object):
         print 'Loading dataset for', self.name
         self.tree = ROOT.TChain(branch_name)
         self.tree.Add(self.filename)
-        list_name = '__mc_events_%s' % self.name
-        self.tree.Draw('>>%s' % list_name, 'evIndex == 0 || evIndex == -1')
-        event_list = ROOT.gDirectory.Get(list_name)
-        self.mc_events = event_list.GetN()
+        #list_name = '__mc_events_%s' % self.name
+        #self.tree.Draw('>>%s' % list_name, 'evIndex == 0 || evIndex == -1')
+        #event_list = ROOT.gDirectory.Get(list_name)
+        #self.mc_events = event_list.GetN()
 
-    def count(self, cut=''):
+    def count(self, live_time=1, cut=''):
         '''Get the rate of the events that pass a cut.
 
         :param cut: A ROOT TCut string
+        :param live_time: *int*, The live time in years
         :returns: The rate of events per year that pass the cut
         '''
+        assert(int(live_time) == live_time)
         list_name = '__roi_events_%s' % self.name
         self.tree.Draw('>>%s' % list_name, cut)
         roi_events = ROOT.gDirectory.Get(list_name)
-        counts = self.normalization * roi_events.GetN() / self.mc_events
+
+        normalization = sum(self.rates[:int(live_time)]) * self.scale
+        counts = normalization * roi_events.GetN() / self.mc_events
         return [(self.name, counts)]
 
     def plot(self, nbins, xmin, xmax, color=1, live_time=1, cut='',
@@ -63,11 +66,12 @@ class Signal(object):
         :param xmin: Minimum of domain
         :param xmax: Maximum of domain
         :param color: ROOT color ID
-        :param live_time: Scale factor for live time (years)
+        :param live_time: *int* Scale factor for live time (years)
         :param cut: A ROOT TCut string
         :param e_units: Energy units (if not MeV)
         :returns: The energy spectrum as a scaled TH1F
         '''
+        assert(int(live_time) == live_time)
         name = '__energy_hist_%s' % self.name
         h = ROOT.TH1F(name, '', nbins, xmin, xmax)
         binsize = '%1.1f' % (h.GetBinWidth(1) * 1000)
@@ -77,7 +81,8 @@ class Signal(object):
         rootutils.set_plot_options(h, color)
         if h.Integral() > 0:
             pass_cut = h.Integral() / self.mc_events
-            h.Scale(self.normalization * live_time * pass_cut / h.Integral())
+            normalization = sum(self.rates[:int(live_time)]) * self.scale
+            h.Scale(normalization * live_time * pass_cut / h.Integral())
         return h
 
 
@@ -100,7 +105,7 @@ class Chain(object):
         '''
         self.signals.append(signal)
 
-    def count(self, cut=''):
+    def count(self, live_time=1, cut=''):
         '''Get the rate of the events that pass a cut.
 
         :param cut: A ROOT TCut string
@@ -108,7 +113,7 @@ class Chain(object):
         '''
         counts = []
         for signal in self.signals:
-            counts.extend(signal.count(cut))
+            counts.extend(signal.count(live_time=live_time, cut=cut))
         return counts
 
     def plot(self, nbins, xmin, xmax, color=1, live_time=1, cut='',

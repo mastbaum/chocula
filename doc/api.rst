@@ -30,6 +30,18 @@ Counting
 .. automodule:: chocula.counting
    :members:
 
+Distributions
+`````````````
+
+.. automodule:: chocula.distributions
+   :members:
+
+Plotting
+````````
+
+.. automodule:: chocula.plot
+   :members:
+
 Signals
 -------
 Signals (including both backgrounds and the signal of interest) are represented

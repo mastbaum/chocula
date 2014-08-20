@@ -27,9 +27,10 @@ def import_csv(csv_file):
 
     for row in reader:
         row = map(lambda x: x.strip(), row)
-        chain, name, title, filename, rate, scale = row
-        rate, scale = float(rate), float(scale)
-        signal = Signal(name, chain, title, filename, rate, scale=scale)
+        chain, name, title, filename, scale, rate_y1, rate_y2, rate_y3, rate_y4, rate_y5 = row
+        rates = map(float, [rate_y1, rate_y2, rate_y3, rate_y4, rate_y5])
+        scale = float(scale)
+        signal = Signal(name, chain, title, filename, rates, scale=scale)
         signals.append(signal)
 
     csv_file.close()

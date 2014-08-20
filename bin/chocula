@@ -56,7 +56,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Counting experiment')
     parser.add_argument('--radius', '-r', type=float, default=3500.0,
                         help='Fiducial volume radius cut (mm)')
-    parser.add_argument('--energy', '-e', default='upper',
+    parser.add_argument('--energy', '-e', default='m05p15',
                         help='Energy ROI as type or explicit "low:high"')
     parser.add_argument('--fitter', '-f', default='scintFit',
                         help='Vertex fitter')
@@ -69,6 +69,8 @@ if __name__ == '__main__':
                         help='Do not count events in the ROI')
     parser.add_argument('--plot', action='store_true',
                         help='Produce a plot of energy distributions')
+    parser.add_argument('--no-sums', action='store_true',
+                        help='Exclude summed spectrum in plot')
     parser.add_argument('--live-time', '-t', default=1, type=float,
                         help='Live time, used to scale plot')
     parser.add_argument('--bounds', '-b', default='250:0:5:0.1:1000',
@@ -79,17 +81,16 @@ if __name__ == '__main__':
     # Load the CSV background table the ROOT datasets
     signals = loader.load(args.table, args.processes)
 
-    # Set up the cuts
-    signal_signal = None
     if not args.no_count:
+        # Set up the cuts
+        signal_signal = None
         print '== Cut ======'
         signal_signal = filter(lambda x: x.chain == 'S', signals)[0]
         cut = _make_cuts(args.radius, args.fitter, args.energy, signal_signal)
         print cut
 
-    # Count 'em
-    if not args.no_count:
-        print '== Counts ==='
+        # Count 'em
+        print '== Counts (Year 1) ==='
         count = counting.count(signals, cut, processes=args.processes)
 
         # Output the results
@@ -99,8 +100,20 @@ if __name__ == '__main__':
 
         if args.output is not None:
             with open(args.output + '.csv', 'w') as f:
-                for signal in count:
-                    f.write('%s,%1.3f\n' % signal)
+                for name, counts in count:
+                    title = ''
+                    for signal in signals:
+                        if hasattr(signal, 'signals'):
+                            for s in signal.signals:
+                                if s.name == name:
+                                    title = s.title
+                                    break
+                        else:
+                            if signal.name == name:
+                                title = signal.title
+                                break
+
+                    f.write('%s,%s,%1.3f\n' % (name, title, counts))
 
     # Spectrum plot
     if args.plot:
@@ -110,8 +123,9 @@ if __name__ == '__main__':
         cut = _make_cuts(args.radius, args.fitter, None, signal_signal)
         canvas, legend, plots = plot.plot(signals, bins, x1, x2, y1, y2,
                                           args.live_time, cut,
+                                          sums=(not args.no_sums),
                                           processes=args.processes)
         canvas.SaveAs(args.output + '.pdf')
-        canvas.SaveAs(args.output + '.C')
-        print 'Created %s.pdf and %s.C' % (args.output, args.output)
+        canvas.SaveAs(args.output + '.root')
+        print 'Created %s.pdf and %s.root' % (args.output, args.output)
 
